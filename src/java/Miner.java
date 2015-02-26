@@ -17,16 +17,18 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Random;
 
 public class Miner {
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InterruptedException {
         PropertyConfigurator.configure(Miner.class.getResource("/config/log4j.properties"));
 
+        // use this chain for texting purposes
         Miner miner
 //        = new Miner(
 //            "32",
-//            BaseEncoding.base16().lowerCase().decode("00000062b91299768d53751b24e61509de70c613297e2d04b86caa4462b63b89"),
-//            129
+//            BaseEncoding.base16().lowerCase().decode("0000007372c87b94aa6b75a7d23a18c2a1632841dd8be20458f02c8d0bf0bc98"),
+//            130
 //        )
             ;
 
@@ -82,9 +84,8 @@ public class Miner {
     public Miner mine() throws NoSuchAlgorithmException, IOException, InterruptedException {
         int proc = Runtime.getRuntime().availableProcessors();
         System.out.println("procs: " + proc);
-        int threads = 256;
-        long offset = 0;
-        long mod = 16567;
+        int threads = 1024;
+        long mod = threads;
 
         byte[] lengthBytes = Ints.toByteArray(length);
         byte[] block = new byte[hash.length + contentsBytes.length + 8 + lengthBytes.length];
@@ -118,10 +119,13 @@ public class Miner {
         if (nvidia != null) {
             best = nvidia;
         }
-//        int count = 20;
-        for (long i = offset; true; i += mod * 1_000_000L) {
-            System.out.println(i);
-            GpuSha256 kernel = new GpuSha256(block, i, mod, length);
+        Random r = new Random();
+        int lastCount = 0;
+        for (long i = 0; true; i++) {
+            System.out.println("finished: " + i * threads * 1_000_000);
+            long nonceBlock = Math.abs(r.nextLong());
+            System.out.println("current nonceBlock: " + nonceBlock);
+            GpuSha256 kernel = new GpuSha256(block, nonceBlock, mod, length);
             kernel.execute(best.createRange(threads));
             System.out.println(kernel.getExecutionMode());
             if (kernel.solved[0]) {
@@ -129,7 +133,6 @@ public class Miner {
                 byte[] next = kernel.target;
                 System.out.println(BaseEncoding.base16().lowerCase().encode(next));
                 post(BaseEncoding.base16().lowerCase().encode(hash), contents, kernel.nonce[0], length);
-                System.exit(0);
                 return null;
             }
 
@@ -141,6 +144,8 @@ public class Miner {
 //            do poll
             long cur = System.currentTimeMillis();
             if (cur - time >= 30000) {
+                long hps = (i - lastCount) * threads * 1_000_000 * 1000 / (cur - time);
+                System.out.println("HASHES PER SECOND: " + hps);
                 time = cur;
                 Miner miner = pollHead();
                 if (miner.length != length) {
@@ -180,6 +185,4 @@ public class Miner {
         ResponseHandler responseHandler = new BasicResponseHandler();
         System.out.println(httpclient.execute(httpost, responseHandler));
     }
-
-
 }

@@ -61,7 +61,6 @@ public class GpuSha256 extends Kernel {
     /** Hash target */
     public final byte[] target = new byte[32];
 
-    private final byte[] block;
     private final long start;
     private final long mod;
     private final int length;
@@ -76,7 +75,6 @@ public class GpuSha256 extends Kernel {
         this.start = start;
         this.mod = mod;
         this.length = length;
-        this.block = block;
         setInput(block);
     }
 
@@ -164,42 +162,100 @@ public class GpuSha256 extends Kernel {
         byte nonce1 = (byte) (value & 0xffL);
         value >>= 8;
         byte nonce0 = (byte) (value & 0xffL);
-        value >>= 8;
         // Transform the data
         //
         // We will modify the nonce (first 8 bytes of the input data) for each execution instance
         //
-        for (r=0; r<64; r++) {
-            if (r < 16) {
-                if (r == 8) {
-                    // CUSTOM : nonce at bytes 34, 35 (34 / 4 = 8)
-                    w16 = (input[offset++] << 24 | (input[offset++] & 0xFF) << 16 |
-                        (nonce0 & 0xFF) << 8 | (nonce1 & 0xFF));
-                    offset++;
-                    offset++;
-                } else if (r == 9) {
-                    // CUSTOM : nonce at byte 36, 37, 38, 39 (36 / 4 = 9)
-                    w16 = (nonce2 << 24 | (nonce3 & 0xFF) << 16 |
-                        (nonce4 & 0xFF) << 8 | (nonce5 & 0xFF));
-                    offset++;
-                    offset++;
-                    offset++;
-                    offset++;
-                } else if (r == 10) {
-                    offset++;
-                    offset++;
-                    w16 = (nonce6 << 24 | (nonce7 & 0xFF) << 16 |
-                        (input[offset++] & 0xFF) << 8 | (input[offset++] & 0xFF));
-                } else {
-                    w16 = (input[offset++] << 24 | (input[offset++] & 0xFF) << 16 |
-                        (input[offset++] & 0xFF) << 8 | (input[offset++] & 0xFF));
-                }
-            } else {
-                T =  w14;
-                T2 = w1;
-                w16 = ((((T >>> 17) | (T << 15)) ^ ((T >>> 19) | (T << 13)) ^ (T >>> 10)) + w9 +
-                    (((T2 >>> 7) | (T2 << 25)) ^ ((T2 >>> 18) | (T2 << 14)) ^ (T2 >>> 3)) + w0);
-            }
+
+        byte[] input = this.input;
+        int[] k = this.k;
+
+        for (r = 0; r < 8; r++) {
+            w16 = (input[offset++] << 24 | (input[offset++] & 0xFF) << 16 |
+                (input[offset++] & 0xFF) << 8 | (input[offset++] & 0xFF));
+            T = (H + (((E >>> 6) | (E << 26)) ^ ((E >>> 11) | (E << 21)) ^ ((E >>> 25) | (E << 7))) +
+                ((E & F) ^ (~E & G)) + k[r] + w16);
+            T2 = ((((A >>> 2) | (A << 30)) ^ ((A >>> 13) | (A << 19)) ^ ((A >>> 22) | (A << 10))) +
+                ((A & B) ^ (A & C) ^ (B & C)));
+            w3 = w4; w4 = w5; w5 = w6; w6 = w7; w7 = w8; w8 = w9;
+            w9 = w10; w10 = w11; w11 = w12; w12 = w13; w13 = w14; w14 = w15; w15 = w16;
+            H = G; G = F; F = E;
+            E = D + T;
+            D = C; C = B; B = A;
+            A = T + T2;
+        }
+
+        {
+            r = 8;
+            // CUSTOM : nonce at bytes 34, 35 (34 / 4 = 8)
+            w16 = (input[offset++] << 24 | (input[offset++] & 0xFF) << 16 |
+                (nonce0 & 0xFF) << 8 | (nonce1 & 0xFF));
+            offset+=2;
+            T = (H + (((E >>> 6) | (E << 26)) ^ ((E >>> 11) | (E << 21)) ^ ((E >>> 25) | (E << 7))) +
+                ((E & F) ^ (~E & G)) + k[r] + w16);
+            T2 = ((((A >>> 2) | (A << 30)) ^ ((A >>> 13) | (A << 19)) ^ ((A >>> 22) | (A << 10))) +
+                ((A & B) ^ (A & C) ^ (B & C)));
+            w2 = w3; w3 = w4; w4 = w5; w5 = w6; w6 = w7; w7 = w8; w8 = w9;
+            w9 = w10; w10 = w11; w11 = w12; w12 = w13; w13 = w14; w14 = w15; w15 = w16;
+            H = G; G = F; F = E;
+            E = D + T;
+            D = C; C = B; B = A;
+            A = T + T2;
+        }
+        {
+            r = 9;
+            // CUSTOM : nonce at byte 36, 37, 38, 39 (36 / 4 = 9)
+            w16 = (nonce2 << 24 | (nonce3 & 0xFF) << 16 |
+                (nonce4 & 0xFF) << 8 | (nonce5 & 0xFF));
+            offset+=4;
+            T = (H + (((E >>> 6) | (E << 26)) ^ ((E >>> 11) | (E << 21)) ^ ((E >>> 25) | (E << 7))) +
+                ((E & F) ^ (~E & G)) + k[r] + w16);
+            T2 = ((((A >>> 2) | (A << 30)) ^ ((A >>> 13) | (A << 19)) ^ ((A >>> 22) | (A << 10))) +
+                ((A & B) ^ (A & C) ^ (B & C)));
+            w1 = w2; w2 = w3; w3 = w4; w4 = w5; w5 = w6; w6 = w7; w7 = w8; w8 = w9;
+            w9 = w10; w10 = w11; w11 = w12; w12 = w13; w13 = w14; w14 = w15; w15 = w16;
+            H = G; G = F; F = E;
+            E = D + T;
+            D = C; C = B; B = A;
+            A = T + T2;
+        }
+
+        {
+            r = 10;
+            offset+=2;
+            w16 = (nonce6 << 24 | (nonce7 & 0xFF) << 16 |
+                (input[offset++] & 0xFF) << 8 | (input[offset++] & 0xFF));
+            T = (H + (((E >>> 6) | (E << 26)) ^ ((E >>> 11) | (E << 21)) ^ ((E >>> 25) | (E << 7))) +
+                ((E & F) ^ (~E & G)) + k[r] + w16);
+            T2 = ((((A >>> 2) | (A << 30)) ^ ((A >>> 13) | (A << 19)) ^ ((A >>> 22) | (A << 10))) +
+                ((A & B) ^ (A & C) ^ (B & C)));
+            w0 = w1; w1 = w2; w2 = w3; w3 = w4; w4 = w5; w5 = w6; w6 = w7; w7 = w8; w8 = w9;
+            w9 = w10; w10 = w11; w11 = w12; w12 = w13; w13 = w14; w14 = w15; w15 = w16;
+            H = G; G = F; F = E;
+            E = D + T;
+            D = C; C = B; B = A;
+            A = T + T2;
+        }
+
+        for (r = 11; r < 16; r++) {
+            w16 = (input[offset++] << 24 | (input[offset++] & 0xFF) << 16 |
+                (input[offset++] & 0xFF) << 8 | (input[offset++] & 0xFF));
+            T = (H + (((E >>> 6) | (E << 26)) ^ ((E >>> 11) | (E << 21)) ^ ((E >>> 25) | (E << 7))) +
+                ((E & F) ^ (~E & G)) + k[r] + w16);
+            T2 = ((((A >>> 2) | (A << 30)) ^ ((A >>> 13) | (A << 19)) ^ ((A >>> 22) | (A << 10))) +
+                ((A & B) ^ (A & C) ^ (B & C)));
+            w0 = w1; w1 = w2; w2 = w3; w3 = w4; w4 = w5; w5 = w6; w6 = w7; w7 = w8; w8 = w9;
+            w9 = w10; w10 = w11; w11 = w12; w12 = w13; w13 = w14; w14 = w15; w15 = w16;
+            H = G; G = F; F = E;
+            E = D + T;
+            D = C; C = B; B = A;
+            A = T + T2;
+        }
+        for (r = 16; r < 64; r++) {
+            T =  w14;
+            T2 = w1;
+            w16 = ((((T >>> 17) | (T << 15)) ^ ((T >>> 19) | (T << 13)) ^ (T >>> 10)) + w9 +
+                (((T2 >>> 7) | (T2 << 25)) ^ ((T2 >>> 18) | (T2 << 14)) ^ (T2 >>> 3)) + w0);
             T = (H + (((E >>> 6) | (E << 26)) ^ ((E >>> 11) | (E << 21)) ^ ((E >>> 25) | (E << 7))) +
                 ((E & F) ^ (~E & G)) + k[r] + w16);
             T2 = ((((A >>> 2) | (A << 30)) ^ ((A >>> 13) | (A << 19)) ^ ((A >>> 22) | (A << 10))) +
