@@ -22,6 +22,7 @@ import java.util.Random;
 
 public class Miner {
     public static String minerID = "32"; // default
+    public static boolean nextMode = false;
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InterruptedException {
         PropertyConfigurator.configure(Miner.class.getResource("/config/log4j.properties"));
@@ -33,43 +34,48 @@ public class Miner {
 
 
         // use this chain for texting purposes
-        Miner miner
-//        = new Miner(
-//            "32",
-//            BaseEncoding.base16().lowerCase().decode("0000006ad92f7cd7a0bc20523d3a9252a8d49accdb24ce084128d8fe5a6dc101"),
-//            132
-//        )
-            ;
+        Miner miner = new Miner(
+            "32",
+            BaseEncoding.base16().lowerCase().decode("0000006ad92f7cd7a0bc20523d3a9252a8d49accdb24ce084128d8fe5a6dc101"),
+            132
+        );
 
         if (args.length >= 3) {
             miner = new Miner(
-                minerID, BaseEncoding.base16().lowerCase().decode(args[1]), Integer.parseInt(args[2])
+                minerID, BaseEncoding.base16().lowerCase().decode(args[1]), Integer.parseInt(args[2]) + 1
             );
-        } else {
-            miner = pollHead();
+            nextMode = true;
         }
+
+        miner = pollHead(miner);
 
         while (true) {
             Miner next = miner.mine();
             if (next == null) {
-                miner = pollHead();
+                miner = pollHead(miner);
             } else {
                 miner = next;
             }
         }
     }
 
-    public static Miner pollHead() throws IOException, NoSuchAlgorithmException {
+    public static Miner pollHead(Miner miner) throws IOException, NoSuchAlgorithmException {
         //instantiates httpclient to make request
         DefaultHttpClient httpclient = new DefaultHttpClient();
 
+        String hashString = BaseEncoding.base16().lowerCase().encode(miner.hash);
         //url with the post data
-        HttpGet httpost = new HttpGet("http://6857coin.csail.mit.edu/head");
+        String url = nextMode ? "http://6857coin.csail.mit.edu/next/" + hashString : "http://6857coin.csail.mit.edu/head";
+        HttpGet httpost = new HttpGet(url);
 
         //convert parameters into JSON object
         //Handles what is returned from the page
         HttpResponse response = httpclient.execute(httpost);
         String s = EntityUtils.toString(response.getEntity());
+        if (s.contains("no next block")) {
+            return miner;
+        }
+        
         // create an ObjectMapper instance.
         ObjectMapper mapper = new ObjectMapper();
         // use the ObjectMapper to read the json string and create a tree
@@ -168,7 +174,7 @@ public class Miner {
                 lastCount = i;
                 System.out.println("HASHES PER SECOND: " + hps);
                 time = cur;
-                Miner miner = pollHead();
+                Miner miner = pollHead(this);
                 if (miner.length != length) {
                     return miner;
                 }
