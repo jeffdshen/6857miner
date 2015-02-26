@@ -31,6 +31,7 @@ public class Miner {
             System.out.println("alt id : " + minerID);
         }
 
+
         // use this chain for texting purposes
         Miner miner
 //        = new Miner(
@@ -40,7 +41,13 @@ public class Miner {
 //        )
             ;
 
-        miner = pollHead();
+        if (args.length >= 3) {
+            miner = new Miner(
+                minerID, BaseEncoding.base16().lowerCase().decode(args[1]), Integer.parseInt(args[2])
+            );
+        } else {
+            miner = pollHead();
+        }
 
         while (true) {
             Miner next = miner.mine();
