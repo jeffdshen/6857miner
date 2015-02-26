@@ -16,6 +16,7 @@ import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 
@@ -44,7 +45,7 @@ public class Miner {
         }
     }
 
-    public static Miner pollHead() throws IOException {
+    public static Miner pollHead() throws IOException, NoSuchAlgorithmException {
         //instantiates httpclient to make request
         DefaultHttpClient httpclient = new DefaultHttpClient();
 
@@ -61,12 +62,13 @@ public class Miner {
         JsonNode node = mapper.readTree(s);
         String hash = node.findValue("PrevHash").getTextValue();
         int length = node.findValue("Length").getIntValue();
-        System.out.println("hash : " + hash + ", length: " + length);
-        return new Miner(
-            "32",
-            BaseEncoding.base16().lowerCase().decode(hash),
-            length + 1
-        );
+        long nonce = node.findValue("Nonce").getLongValue();
+        String contents = node.findValue("Contents").getTextValue();
+
+        byte[] sha = sha256(hash, contents, nonce, length);
+        System.out.println("hash : " + BaseEncoding.base16().lowerCase().encode(sha) + ", length: " + length);
+
+        return new Miner("32", sha, length + 1);
     }
 
     private byte[] hash;
@@ -120,7 +122,7 @@ public class Miner {
             best = nvidia;
         }
         Random r = new Random();
-        int lastCount = 0;
+        long lastCount = 0;
         for (long i = 0; true; i++) {
             System.out.println("finished: " + i * threads * 1_000_000);
             long nonceBlock = Math.abs(r.nextLong());
@@ -131,7 +133,7 @@ public class Miner {
             if (kernel.solved[0]) {
                 byte[] nonce = Longs.toByteArray(kernel.nonce[0]);
                 byte[] next = kernel.target;
-                System.out.println(BaseEncoding.base16().lowerCase().encode(next));
+                System.out.println("FOUND HASH: " + BaseEncoding.base16().lowerCase().encode(next));
                 post(BaseEncoding.base16().lowerCase().encode(hash), contents, kernel.nonce[0], length);
                 return null;
             }
@@ -145,6 +147,7 @@ public class Miner {
             long cur = System.currentTimeMillis();
             if (cur - time >= 30000) {
                 long hps = (i - lastCount) * threads * 1_000_000 * 1000 / (cur - time);
+                lastCount = i;
                 System.out.println("HASHES PER SECOND: " + hps);
                 time = cur;
                 Miner miner = pollHead();
@@ -153,6 +156,21 @@ public class Miner {
                 }
             }
         }
+    }
+
+    public static byte[] sha256(String hashString, String contents, long nonce, int length) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        byte[] contentsBytes = contents.getBytes();
+        byte[] hash = BaseEncoding.base16().lowerCase().decode(hashString);
+        byte[] lengthBytes = Ints.toByteArray(length);
+        byte[] nonceBytes = Longs.toByteArray(nonce);
+
+        byte[] block = new byte[hash.length + contentsBytes.length + 8 + lengthBytes.length];
+        System.arraycopy(hash, 0, block, 0, hash.length);
+        System.arraycopy(contentsBytes, 0, block, hash.length, contentsBytes.length);
+        System.arraycopy(lengthBytes, 0, block, hash.length + contentsBytes.length + 8, lengthBytes.length);
+        System.arraycopy(nonceBytes, 0, block, hash.length + contentsBytes.length, 8);
+        return digest.digest(block);
     }
 
     public static void post(String hash, String contents, long nonce, int length) throws IOException {
@@ -170,7 +188,7 @@ public class Miner {
             "  \"Length\": %d\n" +
             "}";
 
-        System.out.println(String.format(fmt, hash, contents, nonce, length));
+        System.out.println("FOUND: " + String.format(fmt, hash, contents, nonce, length));
         //passes the results to a string builder/entity
         StringEntity se = new StringEntity(String.format(fmt, hash, contents, nonce, length));
 
