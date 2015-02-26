@@ -26,14 +26,14 @@ public class Miner {
 
         // use this chain for texting purposes
         Miner miner
-//        = new Miner(
-//            "32",
-//            BaseEncoding.base16().lowerCase().decode("0000007372c87b94aa6b75a7d23a18c2a1632841dd8be20458f02c8d0bf0bc98"),
-//            130
-//        )
+        = new Miner(
+            "32",
+            BaseEncoding.base16().lowerCase().decode("0000007372c87b94aa6b75a7d23a18c2a1632841dd8be20458f02c8d0bf0bc98"),
+            130
+        )
             ;
 
-        miner = pollHead();
+//        miner = pollHead();
 
         while (true) {
             Miner next = miner.mine();
