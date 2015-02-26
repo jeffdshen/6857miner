@@ -303,12 +303,12 @@ public class GpuSha256 extends Kernel {
             }
 
             if (difficulty >= 64) {
-                if (h2 != 0) {
+                if (h1 != 0) {
                     return false;
                 }
 
-                if (difficulty >= 72) {
-                    if (h3 != 0) {
+                if (difficulty >= 96) {
+                    if (h2 != 0) {
                         return false;
                     }
                     // should never reach...
