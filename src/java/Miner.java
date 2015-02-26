@@ -26,14 +26,14 @@ public class Miner {
 
         // use this chain for texting purposes
         Miner miner
-        = new Miner(
-            "32",
-            BaseEncoding.base16().lowerCase().decode("0000007372c87b94aa6b75a7d23a18c2a1632841dd8be20458f02c8d0bf0bc98"),
-            130
-        )
+//        = new Miner(
+//            "32",
+//            BaseEncoding.base16().lowerCase().decode("00000047321bddefb59fecea995e08542806ed2e5dc6dcbf81e02561d8259359"),
+//            131
+//        )
             ;
 
-//        miner = pollHead();
+        miner = pollHead();
 
         while (true) {
             Miner next = miner.mine();
@@ -107,7 +107,7 @@ public class Miner {
                 System.out.println(openCLDevice.getPlatform().getName());
                 System.out.println(openCLDevice.getPlatform().getVersion());
                 System.out.println(openCLDevice.getPlatform().toString());
-                if (openCLDevice.getType() == Device.TYPE.GPU && openCLDevice.getPlatform().getVendor().equals("NVIDIA")) {
+                if (openCLDevice.getType() == Device.TYPE.GPU && openCLDevice.getPlatform().getVendor().toUpperCase().contains("NVIDIA")) {
                     return openCLDevice;
                 }
                 return null;
@@ -120,7 +120,11 @@ public class Miner {
 
         if (nvidia != null) {
             best = nvidia;
+        } else if (best.getType() != Device.TYPE.GPU) {
+            best = Device.firstGPU();
         }
+
+        System.out.println(best);
         Random r = new Random();
         long lastCount = 0;
         for (long i = 0; true; i++) {
