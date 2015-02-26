@@ -324,7 +324,7 @@ public class GpuSha256 extends Kernel {
         }
 
         difficulty %= 32;
-        if ((cur >> (32 - difficulty)) != 0) {
+        if (difficulty > 0 && (cur >> (32 - difficulty)) != 0) {
             return false;
         }
 
