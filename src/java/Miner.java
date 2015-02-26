@@ -23,6 +23,7 @@ import java.util.Random;
 public class Miner {
     public static String minerID = "32"; // default
     public static boolean nextMode = false;
+    public static int threads = 512;
 
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InterruptedException {
         PropertyConfigurator.configure(Miner.class.getResource("/config/log4j.properties"));
@@ -32,6 +33,10 @@ public class Miner {
             System.out.println("alt id : " + minerID);
         }
 
+        if (args.length >= 2) {
+            threads = Integer.parseInt(args[1]);
+            System.out.println("threads : " + threads);
+        }
 
         // use this chain for texting purposes
         Miner miner = new Miner(
@@ -40,9 +45,9 @@ public class Miner {
             132
         );
 
-        if (args.length >= 3) {
+        if (args.length >= 4) {
             miner = new Miner(
-                minerID, BaseEncoding.base16().lowerCase().decode(args[1]), Integer.parseInt(args[2]) + 1
+                minerID, BaseEncoding.base16().lowerCase().decode(args[2]), Integer.parseInt(args[3]) + 1
             );
             nextMode = true;
         }
@@ -106,7 +111,7 @@ public class Miner {
     public Miner mine() throws NoSuchAlgorithmException, IOException, InterruptedException {
         int proc = Runtime.getRuntime().availableProcessors();
         System.out.println("procs: " + proc);
-        int threads = 16384;
+        int threads = Miner.threads;
         long mod = threads;
 
         byte[] lengthBytes = Ints.toByteArray(length);
