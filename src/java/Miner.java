@@ -21,15 +21,22 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 
 public class Miner {
+    public static String minerID = "32"; // default
+
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InterruptedException {
         PropertyConfigurator.configure(Miner.class.getResource("/config/log4j.properties"));
+
+        if (args.length >= 1) {
+            minerID = args[0];
+            System.out.println("alt id : " + minerID);
+        }
 
         // use this chain for texting purposes
         Miner miner
 //        = new Miner(
 //            "32",
-//            BaseEncoding.base16().lowerCase().decode("00000047321bddefb59fecea995e08542806ed2e5dc6dcbf81e02561d8259359"),
-//            131
+//            BaseEncoding.base16().lowerCase().decode("0000006ad92f7cd7a0bc20523d3a9252a8d49accdb24ce084128d8fe5a6dc101"),
+//            132
 //        )
             ;
 
@@ -68,7 +75,7 @@ public class Miner {
         byte[] sha = sha256(hash, contents, nonce, length);
         System.out.println("hash : " + BaseEncoding.base16().lowerCase().encode(sha) + ", length: " + length);
 
-        return new Miner("32", sha, length + 1);
+        return new Miner(minerID, sha, length + 1);
     }
 
     private byte[] hash;
@@ -86,7 +93,7 @@ public class Miner {
     public Miner mine() throws NoSuchAlgorithmException, IOException, InterruptedException {
         int proc = Runtime.getRuntime().availableProcessors();
         System.out.println("procs: " + proc);
-        int threads = 1024;
+        int threads = 16384;
         long mod = threads;
 
         byte[] lengthBytes = Ints.toByteArray(length);
