@@ -145,7 +145,7 @@ public class Miner {
 
         if (nvidia != null) {
             best = nvidia;
-        } else if (best.getType() != Device.TYPE.GPU) {
+        } else if (best.getType() != Device.TYPE.GPU && Device.firstGPU() != null) {
             best = Device.firstGPU();
         }
 
