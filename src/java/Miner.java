@@ -25,9 +25,12 @@ public class Miner {
     public static boolean nextMode = false;
     public static int threads = 512;
 
+//    public static PrintWriter out;
+
     public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InterruptedException {
         PropertyConfigurator.configure(Miner.class.getResource("/config/log4j.properties"));
 
+//        out = new PrintWriter(new BufferedWriter(new FileWriter("chain.txt")));
         if (args.length >= 1) {
             minerID = args[0];
             System.out.println("alt id : " + minerID);
@@ -51,8 +54,11 @@ public class Miner {
             );
             nextMode = true;
         }
-
-        miner = pollHead(miner);
+        if (nextMode) {
+            miner = getToHead(miner);
+        } else {
+            miner = pollHead(miner);
+        }
 
         while (true) {
             Miner next = miner.mine();
@@ -61,6 +67,17 @@ public class Miner {
             } else {
                 miner = next;
             }
+        }
+    }
+
+    public static Miner getToHead(Miner miner) throws IOException, NoSuchAlgorithmException, InterruptedException {
+        while (true) {
+            Miner next = pollHead(miner);
+            if (next.length <= miner.length) {
+                return miner;
+            }
+            miner = next;
+            Thread.sleep(100);
         }
     }
 
@@ -80,7 +97,7 @@ public class Miner {
         if (s.contains("no next block")) {
             return miner;
         }
-        
+
         // create an ObjectMapper instance.
         ObjectMapper mapper = new ObjectMapper();
         // use the ObjectMapper to read the json string and create a tree
@@ -92,7 +109,11 @@ public class Miner {
 
         byte[] sha = sha256(hash, contents, nonce, length);
         System.out.println("hash : " + BaseEncoding.base16().lowerCase().encode(sha) + ", length: " + length);
+//        out.println(hash);
+//        out.println(s);
+//        out.flush();
 
+        // BaseEncoding.base16().lowerCase().decode(hash)
         return new Miner(minerID, sha, length + 1);
     }
 
@@ -153,11 +174,12 @@ public class Miner {
         Random r = new Random();
         long lastCount = 0;
         for (long i = 0; true; i++) {
-            System.out.println("finished: " + i * threads * 1_000_000);
+            System.out.println("finished: " + i * threads * 100_000);
             long nonceBlock = Math.abs(r.nextLong());
             System.out.println("current nonceBlock: " + nonceBlock);
             GpuSha256 kernel = new GpuSha256(block, nonceBlock, mod, length);
             kernel.execute(best.createRange(threads));
+            kernel.dispose();
             System.out.println(kernel.getExecutionMode());
             if (kernel.solved[0]) {
                 byte[] nonce = Longs.toByteArray(kernel.nonce[0]);
@@ -167,15 +189,20 @@ public class Miner {
                 return null;
             }
 
-//            if (count == 0) {
-//                Thread.sleep(20000);
-//                count = 20;
+//            long count = 0;
+//            for (int j = 0; j < 8192; j++) {
+//                count += kernel.count[j];
 //            }
-//            count--;
-//            do poll
+//            System.out.println("REAL COUNT: " + count);
+            Thread.sleep(500);
             long cur = System.currentTimeMillis();
+//            if (cur - last10min >= 60000) {
+//                System.out.println("HARD PAUSE FOR 30 SEC");
+//                last10min = cur;
+//                Thread.sleep(30000);
+//            }
             if (cur - time >= 30000) {
-                long hps = (i - lastCount) * threads * 1_000_000 * 1000 / (cur - time);
+                long hps = (i - lastCount) * threads * 100_000 * 1000 / (cur - time);
                 lastCount = i;
                 System.out.println("HASHES PER SECOND: " + hps);
                 time = cur;

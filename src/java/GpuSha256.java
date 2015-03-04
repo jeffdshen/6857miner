@@ -83,6 +83,7 @@ public class GpuSha256 extends Kernel {
     private final int length;
     public final boolean[] solved = new boolean[1];
     public final long[] nonce = new long[1];
+//    public final long[] count = new long[8192];
 
     /**
      * Create the GPU hash function
@@ -735,9 +736,10 @@ public class GpuSha256 extends Kernel {
     public void run() {
         int id = getGlobalId();
         int difficulty = length / 100 + 24;
-        long end = id + start + mod * 1_000_000;
+        long end = id + start + mod * 100_000;
 
         for (long i = start + id; i < end; i+= mod) {
+//            count[id]++;
             if (hash(i, difficulty)) {
                 return;
             }
